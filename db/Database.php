@@ -25,7 +25,7 @@ class Database {
             }
 
             if ($this->debug) {
-                echo "<p style='color:green;'>✅ Database connected successfully.</p>";
+               echo "<script>console.log('✅ Database connected successfully.');</script>";
             }
 
         } catch (Exception $e) {

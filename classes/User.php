@@ -8,7 +8,23 @@ class User {
     public function __construct() {
         $db = new Database();
         $this->conn = $db->getConnection();
-        session_start();
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+    }
+
+    /**
+     * Check if user is logged in
+     */
+    public function isLoggedIn() {
+        return isset($_SESSION['user_id']);
+    }
+
+    /**
+     * Logout user
+     */
+    public function logout() {
+        session_destroy();
     }
 
     /**
@@ -50,36 +66,20 @@ class User {
      */
     public function register($name, $email, $phone, $password, $confirm_password) {
         try {
-            // Validation
             if (empty($name) || empty($email) || empty($phone) || empty($password) || empty($confirm_password)) {
                 throw new Exception("All fields are required!");
             }
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                throw new Exception("Invalid email format!");
-            }
-            if (!preg_match('/^\+[0-9]{1,3}[0-9]{4,14}$/', $phone)) {
-                throw new Exception("Invalid phone number format! Must include country code (e.g., +1234567890)");
-            }
-            if ($password !== $confirm_password) {
-                throw new Exception("Passwords do not match!");
-            }
-            if (strlen($password) < 8) {
-                throw new Exception("Password must be at least 8 characters long!");
-            }
-            if (!preg_match('/[A-Z]/', $password)) {
-                throw new Exception("Password must contain at least one uppercase letter!");
-            }
-            if (!preg_match('/[a-z]/', $password)) {
-                throw new Exception("Password must contain at least one lowercase letter!");
-            }
-            if (!preg_match('/[0-9]/', $password)) {
-                throw new Exception("Password must contain at least one number!");
-            }
-            if (!preg_match('/[^A-Za-z0-9]/', $password)) {
-                throw new Exception("Password must contain at least one special character!");
-            }
 
-            // Check if email or phone already exists
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) throw new Exception("Invalid email format!");
+            if (!preg_match('/^\+[0-9]{1,3}[0-9]{4,14}$/', $phone)) throw new Exception("Invalid phone number format!");
+            if ($password !== $confirm_password) throw new Exception("Passwords do not match!");
+            if (strlen($password) < 8) throw new Exception("Password must be at least 8 characters long!");
+            if (!preg_match('/[A-Z]/', $password)) throw new Exception("Password must contain at least one uppercase letter!");
+            if (!preg_match('/[a-z]/', $password)) throw new Exception("Password must contain at least one lowercase letter!");
+            if (!preg_match('/[0-9]/', $password)) throw new Exception("Password must contain at least one number!");
+            if (!preg_match('/[^A-Za-z0-9]/', $password)) throw new Exception("Password must contain at least one special character!");
+
+            // Check existing email or phone
             $stmt = $this->conn->prepare("SELECT * FROM users WHERE email = ? OR phone = ?");
             $stmt->bind_param("ss", $email, $phone);
             $stmt->execute();
@@ -102,6 +102,38 @@ class User {
 
         } catch (Exception $e) {
             return ['status' => false, 'message' => $this->debug ? $e->getMessage() : "Registration failed"];
+        }
+    }
+
+    /**
+     * Get user info by ID
+     */
+    public function getUserById($id) {
+        try {
+            $stmt = $this->conn->prepare("SELECT id, name, profile_pic FROM users WHERE id = ?");
+            $stmt->bind_param("i", $id);
+            $stmt->execute();
+            return $stmt->get_result()->fetch_assoc();
+        } catch (Exception $e) {
+            if ($this->debug) echo "Error: " . $e->getMessage();
+            return null;
+        }
+    }
+
+    /**
+     * Search approved properties
+     */
+    public function searchProperties($search = '') {
+        try {
+            $sql = "SELECT * FROM properties WHERE (title LIKE ? OR location LIKE ?) AND status='approved' ORDER BY created_at DESC";
+            $stmt = $this->conn->prepare($sql);
+            $param = "%$search%";
+            $stmt->bind_param("ss", $param, $param);
+            $stmt->execute();
+            return $stmt->get_result();
+        } catch (Exception $e) {
+            if ($this->debug) echo "Error: " . $e->getMessage();
+            return [];
         }
     }
 }

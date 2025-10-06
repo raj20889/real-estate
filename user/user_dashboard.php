@@ -1,34 +1,29 @@
-<?php 
-session_start();
-include '../db/connect.php';
+<?php
+// Enable errors for debugging
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
-if (!isset($_SESSION['user_id'])) {
+require_once __DIR__ . '/../classes/User.php';
+
+$userObj = new User();
+
+// Check if user is logged in
+if (!$userObj->isLoggedIn()) {
     header("Location: login.php");
     exit();
 }
 
 $user_id = $_SESSION['user_id'];
 
+// Fetch user info
+$user = $userObj->getUserById($user_id);
+$default_profile_pic = 'https://www.w3schools.com/howto/img_avatar.png';
+$profile_pic = !empty($user['profile_pic']) ? $user['profile_pic'] : $default_profile_pic;
 
-$user_query = "SELECT name, profile_pic FROM users WHERE id = ?";
-$stmt = $conn->prepare($user_query);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$user_result = $stmt->get_result();
-$user = $user_result->fetch_assoc();
-
-
-$profile_pic = !empty($user['profile_pic']) ? $user['profile_pic'] : 'uploads/profile/default_profile.png';
-
-
+// Handle search query
 $search_query = isset($_GET['search']) ? trim($_GET['search']) : '';
-$search_sql = "SELECT * FROM properties WHERE (title LIKE ? OR location LIKE ?) AND status = 'approved' ORDER BY created_at DESC";
-
-$stmt = $conn->prepare($search_sql);
-$search_param = "%{$search_query}%";
-$stmt->bind_param("ss", $search_param, $search_param);
-$stmt->execute();
-$properties_result = $stmt->get_result();
+$properties_result = $userObj->searchProperties($search_query);
 ?>
 
 <!DOCTYPE html>
@@ -46,10 +41,8 @@ $properties_result = $stmt->get_result();
             display: flex;
             flex-direction: column;
             background-color: rgba(244, 244, 244, 0.9);
-           
             background-size: cover;
             background-position: center;
-          
         }
         .footer {
             margin-top: auto;
@@ -59,7 +52,6 @@ $properties_result = $stmt->get_result();
     </style>
 </head>
 <body class="bg-gray-50">
-
 
     <nav class="bg-white shadow-md p-4">
         <div class="container mx-auto flex justify-between items-center">
@@ -75,18 +67,12 @@ $properties_result = $stmt->get_result();
                 <a href="about.php" class="text-gray-800 hover:text-blue-500">About</a>
                 <a href="logout.php" class="text-red-500 hover:text-red-700">Logout</a>
 
-                
-                <?php
-                $default_profile_pic = 'https://www.w3schools.com/howto/img_avatar.png';
-                $profile_pic = !empty($user['profile_pic']) ? $user['profile_pic'] : $default_profile_pic;
-                ?>
                 <a href="profile.php" class="relative w-14 h-14 bg-gray-300 flex items-center justify-center rounded-full shadow-md border-2 border-gray-300 overflow-hidden">
                     <img src="<?php echo htmlspecialchars($profile_pic); ?>" alt="Profile" class="w-full h-full object-cover">
                 </a>
             </div>
         </div>
     </nav>
-
 
     <div id="carouselExampleIndicators" class="carousel slide mt-6 container mx-auto" data-bs-ride="carousel">
         <div class="carousel-indicators">
@@ -107,8 +93,7 @@ $properties_result = $stmt->get_result();
         </div>
     </div>
 
-    
-      <div class="container mx-auto px-6 py-12 flex-grow">
+    <div class="container mx-auto px-6 py-12 flex-grow">
         <h3 class="text-3xl font-bold text-gray-800 text-center mb-6">Available Properties</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             <?php if ($properties_result->num_rows > 0): ?>
@@ -133,7 +118,6 @@ $properties_result = $stmt->get_result();
         </div>
     </div>
 
-    
     <footer class="footer text-white py-8">
         <div class="container mx-auto flex justify-between">
             <div>
