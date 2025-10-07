@@ -136,5 +136,44 @@ class User {
             return [];
         }
     }
+
+// Update name, email, and password
+public function updateProfile($id, $name, $email, $password = null) {
+    try {
+        $sql = "UPDATE users SET name=?, email=?";
+        $params = [$name, $email];
+
+        if(!empty($password)){
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
+            $sql .= ", password=?";
+            $params[] = $hashed;
+        }
+
+        $sql .= " WHERE id=?";
+        $params[] = $id;
+
+        $stmt = $this->conn->prepare($sql);
+
+        // Bind dynamically
+        $types = str_repeat("s", count($params)-1) . "i";
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+    } catch(Exception $e){
+        if($this->debug) echo $e->getMessage();
+    }
+}
+
+// Update profile picture
+public function updateProfilePic($id, $path){
+    try {
+        $stmt = $this->conn->prepare("UPDATE users SET profile_pic=? WHERE id=?");
+        $stmt->bind_param("si", $path, $id);
+        $stmt->execute();
+    } catch(Exception $e){
+        if($this->debug) echo $e->getMessage();
+    }
+}
+
+
 }
 ?>
